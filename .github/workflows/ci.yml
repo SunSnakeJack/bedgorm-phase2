@@ -1,0 +1,27 @@
+name: Bedgorm CI
+
+on:
+  push:
+    branches: [feat/phase3-enhancement]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
+      - name: Validate JavaScript syntax
+        run: find dist server test -name '*.mjs' -print0 | xargs -0 -r -n 1 node --check
+      - run: npm test

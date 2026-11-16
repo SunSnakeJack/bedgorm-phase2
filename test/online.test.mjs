@@ -93,3 +93,27 @@ test('isolated HTTP clients share a persistent authoritative match',async()=>{
     assert.deepEqual(state.game.players.map(p=>p.score),(await reload.call(route)).game.players.map(p=>p.score));
   }finally{await app.close();rmSync(dir,{force:true,recursive:true});}
 });
+
+test('concurrent joins allocate distinct seats and preserve the last seat', async () => {
+  const app = await serve({port: 0, file: ':memory:', tickMs: 0});
+  const post = (path, payload) => fetch(app.url + '/api/' + path, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  try {
+    const created = await post('rooms', {name: 'Host', avatar: 0, seats: 4, bots: ['normal']});
+    assert.equal(created.status, 201);
+    const {code} = await created.json();
+
+    const responses = await Promise.all(['Guest A', 'Guest B', 'Guest C'].map(name =>
+      post('rooms/' + code + '/join', {name, avatar: 1})
+    ));
+    assert.deepEqual(responses.map(response => response.status).sort(), [201, 201, 409]);
+    const guests = await Promise.all(responses.filter(response => response.ok).map(response => response.json()));
+    assert.deepEqual(guests.map(guest => guest.me).sort(), [1, 2]);
+    assert.notEqual(guests[0].token, guests[1].token);
+  } finally {
+    await app.close();
+  }
+});
