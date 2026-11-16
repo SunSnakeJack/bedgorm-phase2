@@ -3,7 +3,12 @@ import {test} from 'node:test';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {setTimeout as delay} from 'node:timers/promises';
 import {serve} from '../server/index.mjs';
+
+const exec=promisify(execFile);
 
 function testPersistentMatch(databaseUrl){
   test('persistent authoritative match ('+(databaseUrl?'PostgreSQL':'SQLite')+')',async()=>{
@@ -62,6 +67,25 @@ function testPersistentMatch(databaseUrl){
     await app.close();
     app=await serve({port:0,file,databaseUrl,clock:()=>now,tickMs:0});
     assert.equal((await reload.call(route)).game.step,2);
+    const container=databaseUrl&&process.env.BEDGORM_TEST_POSTGRES_CONTAINER;
+    if(container){
+      await exec('docker',['stop',container]);
+      try{
+        await reload.call(route,undefined,500);
+      }finally{
+        await exec('docker',['start',container]);
+      }
+      for(let attempt=0;;attempt++){
+        try{
+          await exec('docker',['exec',container,'pg_isready','-h','127.0.0.1']);
+          break;
+        }catch(error){
+          if(attempt===19)throw error;
+          await delay(500);
+        }
+      }
+      assert.equal((await reload.call(route)).game.step,2);
+    }
     let state=afterRoll, proxyPlayed=false, timedOut=false;
     const levels=new Set();
     for(let count=0;!state.game.ended&&count<400;count++){

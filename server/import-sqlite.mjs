@@ -32,6 +32,8 @@ try {
         await tx.run(insert, ...columns.map(name => row[name]));
         counts[table]++;
       }
+      const {total} = await tx.get('SELECT COUNT(*) AS total FROM ' + table);
+      if (Number(total) !== counts[table]) throw new Error('Imported row count mismatch');
     }
     return counts;
   });

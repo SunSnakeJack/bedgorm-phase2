@@ -65,6 +65,20 @@ async function poll(){
   }finally{polling=null;}
   if(active&&(previous!==JSON.stringify(room)||lastError!==error))notify();
 }
+export async function waitForServer({probe=()=>fetch('/ready',{
+  cache:'no-store',signal:AbortSignal.timeout(8000)
+}),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms)),onWait=()=>{}}={}){
+  for(let attempt=0;attempt<8;attempt++){
+    try{
+      const response=await probe();
+      if(response.status===204)return;
+      await response.body?.cancel();
+    }catch{}
+    if(attempt===0)onWait();
+    if(attempt<7)await pause(2000);
+  }
+  throw new Error('Server unavailable');
+}
 if(enabled)setInterval(poll,1100);
 function forget(){
   if(readJson(key)?.token===session?.token)write(key,null);
@@ -79,6 +93,13 @@ async function perform(path,body){
   notify();
   try{
     await polling?.catch(()=>{});
+    if(path==='rooms'||path.endsWith('/join')){
+      if(active)await waitForServer({onWait:()=>{
+        error='เซิร์ฟเวอร์กำลังเริ่มทำงาน กรุณารอสักครู่';
+        notify();
+      }});
+      error='';
+    }
     await request(path,body);
   }
   catch(e){error=e.status?e.message:'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่';}

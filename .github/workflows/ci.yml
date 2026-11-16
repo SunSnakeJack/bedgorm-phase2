@@ -41,3 +41,7 @@ jobs:
       - run: npm test
         env:
           BEDGORM_TEST_POSTGRES_URL: postgresql://bedgorm_test@127.0.0.1:${{ job.services.postgres.ports[5432] }}/bedgorm_test
+          BEDGORM_TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+      - run: node scripts/phase3-load.mjs
+        env:
+          BEDGORM_TEST_POSTGRES_URL: postgresql://bedgorm_test@127.0.0.1:${{ job.services.postgres.ports[5432] }}/bedgorm_test

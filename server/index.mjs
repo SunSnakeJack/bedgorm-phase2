@@ -194,6 +194,10 @@ export async function serve({host='127.0.0.1',port=8080,file='bedgorm-online.sql
   const server=createServer(async(request,response)=>{
     try{
       const path=new URL(request.url,'http://localhost').pathname;
+      if(path==='/ready'&&request.method==='GET'){
+        response.writeHead(204,{'Cache-Control':'no-store'}).end();
+        return;
+      }
       if(path.startsWith('/api/')){
         if(request.method==='POST'&&request.headers.origin!==undefined){
           const origin=URL.parse(request.headers.origin);

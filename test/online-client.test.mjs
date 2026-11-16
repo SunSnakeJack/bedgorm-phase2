@@ -24,4 +24,16 @@ test('room polling gives fetch a bounded request signal', async (t) => {
   assert.equal(timeout.mock.callCount(), 1);
   assert.equal(timeout.mock.calls[0].arguments[0], 8000);
   assert.equal(fetch.mock.calls[0].arguments[1].signal, timeout.mock.calls[0].result);
+
+  let probes=0, waits=0, notices=0;
+  await online.waitForServer({
+    probe:async()=>{
+      probes++;
+      if(probes===1)throw new Error('timeout');
+      return new Response(null,{status:probes===2?503:204});
+    },
+    pause:async(ms)=>{assert.equal(ms,2000);waits++;},
+    onWait:()=>notices++
+  });
+  assert.deepEqual([probes,waits,notices],[3,2,1]);
 });
