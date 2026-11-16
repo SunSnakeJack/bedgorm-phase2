@@ -5,11 +5,12 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {serve} from '../server/index.mjs';
 
-test('isolated HTTP clients share a persistent authoritative match',async()=>{
+function testPersistentMatch(databaseUrl){
+  test('persistent authoritative match ('+(databaseUrl?'PostgreSQL':'SQLite')+')',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'bedgorm-'));
   let now=100_000;
   const file=join(dir,'test.sqlite');
-  let app=await serve({port:0,file,clock:()=>now,tickMs:0});
+  let app=await serve({port:0,file,databaseUrl,clock:()=>now,tickMs:0});
   try{
     const client=()=>({
       token:'',
@@ -59,7 +60,7 @@ test('isolated HTTP clients share a persistent authoritative match',async()=>{
     assert.equal(afterRoll.game.step,2);
     assert.deepEqual(afterRoll.game.track,(await a.call(route)).game.track);
     await app.close();
-    app=await serve({port:0,file,clock:()=>now,tickMs:0});
+    app=await serve({port:0,file,databaseUrl,clock:()=>now,tickMs:0});
     assert.equal((await reload.call(route)).game.step,2);
     let state=afterRoll, proxyPlayed=false, timedOut=false;
     const levels=new Set();
@@ -67,11 +68,11 @@ test('isolated HTTP clients share a persistent authoritative match',async()=>{
       const turn=state.game.turn;
       if(turn===0&&count===3){
         now+=30_000;
-        app.tick();
+        await app.tick();
         timedOut=true;
       }else if(turn===1&&count===4){
         now+=50_000;
-        app.tick();
+        await app.tick();
         assert.equal((await a.call(route)).players[1].online,false);
         proxyPlayed=true;
         assert.equal((await reload.call(route)).players[1].online,true);
@@ -82,7 +83,7 @@ test('isolated HTTP clients share a persistent authoritative match',async()=>{
       }else{
         levels.add(state.game.players[turn].bot);
         now+=800;
-        app.tick();
+        await app.tick();
       }
       state=await a.call(route);
     }
@@ -93,6 +94,11 @@ test('isolated HTTP clients share a persistent authoritative match',async()=>{
     assert.deepEqual(state.game.players.map(p=>p.score),(await reload.call(route)).game.players.map(p=>p.score));
   }finally{await app.close();rmSync(dir,{force:true,recursive:true});}
 });
+
+}
+
+testPersistentMatch();
+if(process.env.BEDGORM_TEST_POSTGRES_URL)testPersistentMatch(process.env.BEDGORM_TEST_POSTGRES_URL);
 
 test('concurrent joins allocate distinct seats and preserve the last seat', async () => {
   const app = await serve({port: 0, file: ':memory:', tickMs: 0});
@@ -130,6 +136,37 @@ test('room creation rejects invalid origins before processing JSON', async () =>
       assert.equal(response.status, 403);
       await response.json();
     }
+  } finally {
+    await app.close();
+  }
+});
+
+test('room request quota recovers after its window closes', async () => {
+  let now = 0;
+  const app = await serve({port: 0, file: ':memory:', tickMs: 0, clock: () => now});
+  const create = body => fetch(app.url + '/api/rooms', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  try {
+    for (let index = 0; index < 60; index++) {
+      const response = await create({});
+      assert.equal(response.status, 400);
+      await response.json();
+    }
+    const limited = await create({});
+    assert.equal(limited.status, 429);
+    await limited.json();
+    now = 60_000;
+    const response = await create({name: 'Host', avatar: 0, seats: 3});
+    assert.equal(response.status, 201);
+    const {code, token} = await response.json();
+    now += 86_400_000;
+    await app.tick();
+    const expired = await fetch(app.url + '/api/rooms/' + code, {
+      headers: {Authorization: 'Bearer ' + token}
+    });
+    assert.equal(expired.status, 404);
+    await expired.json();
   } finally {
     await app.close();
   }

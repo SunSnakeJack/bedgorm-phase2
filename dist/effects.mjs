@@ -18,7 +18,7 @@ export function playSound(kind){
   }catch{return;}
 }
 export function motion(app,move,reduced,feedback){
-  if(reduced)return;
+  if(reduced||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   if(feedback==='finish'){
     app.querySelector('.cup')?.animate(
       [{transform:'translateY(15px) scale(.7) rotate(-12deg)',opacity:0},{transform:'translateY(-8px) scale(1.14) rotate(6deg)'},{transform:'none',opacity:1}],
@@ -33,8 +33,8 @@ export function motion(app,move,reduced,feedback){
   );
   if(feedback==='roll'){
     app.querySelector('.dice-panel .dice-list:last-child .die:last-of-type')?.animate(
-      [{transform:'rotate(-18deg) scale(.75)'},{transform:'rotate(9deg) scale(1.1)'},{transform:'none'}],
-      {duration:340,easing:'ease-out'}
+      [{transform:'translateY(4px) rotate(-35deg) scale(.75)'},{transform:'translateY(-6px) rotate(12deg) scale(1.12)'},{transform:'none'}],
+      {duration:380,easing:'ease-out'}
     );
   }
   if(!move)return;
