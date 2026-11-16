@@ -77,14 +77,26 @@ function testPersistentMatch(databaseUrl){
       }
       for(let attempt=0;;attempt++){
         try{
-          await exec('docker',['exec',container,'pg_isready','-h','127.0.0.1']);
+          await exec('docker',['exec',container,'pg_isready','-h','127.0.0.1','-U','bedgorm_test','-d','bedgorm_test']);
           break;
         }catch(error){
           if(attempt===19)throw error;
           await delay(500);
         }
       }
-      assert.equal((await reload.call(route)).game.step,2);
+      for(let attempt=0;;attempt++){
+        const response=await fetch(app.url+'/api/'+route,{
+          headers:{Authorization:'Bearer '+reload.token},signal:AbortSignal.timeout(8000)
+        });
+        const recovered=await response.json();
+        if(response.ok){
+          assert.equal(recovered.game.step,2);
+          break;
+        }
+        assert.equal(response.status,500);
+        assert.ok(attempt<19,'App did not reconnect after database restart');
+        await delay(500);
+      }
     }
     let state=afterRoll, proxyPlayed=false, timedOut=false;
     const levels=new Set();

@@ -20,7 +20,7 @@ jobs:
           POSTGRES_USER: bedgorm_test
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
-          - 5432
+          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U bedgorm_test -d bedgorm_test"
           --health-interval 5s
