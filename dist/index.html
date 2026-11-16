@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f8f5ee">
+<meta name="description" content="Catm-Up! เกมกระดานแข่งแมวและทายผล เล่นกับบอตบน Bedgorm">
+<title>Bedgorm — Catm-Up!</title>
+<link rel="stylesheet" href="./style.css">
+<script type="module" src="./app.mjs"></script>
+</head>
+<body>
+<header class="top"><div class="frame nav">
+<button class="logo" data-route="home"><span>✿</span> Bedgorm<span class="logo-dot">.</span></button>
+<nav aria-label="เมนูหลัก"><button class="link nav-library" data-route="home">คลังเกม</button><button class="link" data-cmd="tutorial">วิธีเล่น</button><button class="icon" data-cmd="settings" aria-label="ตั้งค่า" title="ตั้งค่า">⚙</button></nav>
+</div></header>
+<main id="app" class="frame"></main>
+<footer class="frame footer"><b>✿ Bedgorm</b><span>Catm-Up!</span></footer>
+<dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+<div class="sr" id="announce" aria-live="polite"></div>
+<noscript>เปิด JavaScript เพื่อเล่น Catm-Up!</noscript>
+</body>
+</html>

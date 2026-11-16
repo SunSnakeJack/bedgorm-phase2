@@ -1,0 +1,29 @@
+node_modules/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local databases and runtime output
+*.sqlite-journal
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.log
+coverage/
+
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

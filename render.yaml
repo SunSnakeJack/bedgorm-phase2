@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bedgorm-phase2-demo
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm test
+    startCommand: npm run dev
+    healthCheckPath: /
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: BEDGORM_HOST
+        value: 0.0.0.0
+      - key: BEDGORM_DB
+        value: /tmp/bedgorm-online.sqlite
+      - key: NODE_ENV
+        value: production

@@ -1,0 +1,10 @@
+{
+  "name":"bedgorm-catm-up",
+  "private":true,
+  "type":"module",
+  "engines":{"node":">=24.2"},
+  "scripts":{
+    "dev":"node server/index.mjs",
+    "test":"node --test test/*.test.mjs"
+  }
+}
