@@ -38,7 +38,8 @@ async function request(path,body){
     method:body===undefined?'GET':'POST',
     headers:{...(body!==undefined?{'Content-Type':'application/json'}:{}),...(session?{Authorization:'Bearer '+session.token}:{})},
     body:JSON.stringify(body),
-    cache:'no-store'
+    cache:'no-store',
+    signal:AbortSignal.timeout(8000)
   });
   const result=await response.json();
   if(!response.ok)throw Object.assign(new Error(result.error),{status:response.status});

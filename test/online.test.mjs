@@ -117,3 +117,20 @@ test('concurrent joins allocate distinct seats and preserve the last seat', asyn
     await app.close();
   }
 });
+
+test('room creation rejects invalid origins before processing JSON', async () => {
+  const app = await serve({port: 0, file: ':memory:', tickMs: 0});
+  try {
+    for (const origin of ['null', 'invalid', 'https://example.test']) {
+      const response = await fetch(app.url + '/api/rooms', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', Origin: origin},
+        body: '{}'
+      });
+      assert.equal(response.status, 403);
+      await response.json();
+    }
+  } finally {
+    await app.close();
+  }
+});

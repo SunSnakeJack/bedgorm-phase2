@@ -200,7 +200,11 @@ export async function serve({host='127.0.0.1',port=8080,file='bedgorm-online.sql
     try{
       const path=new URL(request.url,'http://localhost').pathname;
       if(path.startsWith('/api/')){
-        if(request.method==='POST'&&request.headers.origin&&new URL(request.headers.origin).host!==request.headers.host)fail(403,'ต้นทางไม่ถูกต้อง');
+        if(request.method==='POST'&&request.headers.origin!==undefined){
+          const origin=URL.parse(request.headers.origin);
+          if(!origin||origin.origin!==request.headers.origin||
+            !['http:','https:'].includes(origin.protocol)||origin.host!==request.headers.host)fail(403,'ต้นทางไม่ถูกต้อง');
+        }
         const input=request.method==='POST'?await body(request):null;
         const [status,result]=transaction(()=>handle(request,path,input));
         json(response,status,result);
