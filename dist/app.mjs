@@ -18,6 +18,11 @@ const mySeat=()=>inRoom()?online.room.me:0;
 let localMatch;
 let pending;
 let panel='roll';
+let actionDetails=false;
+let botReplay;
+let botReplayTimer;
+const botQueue=[];
+const botDisplayMs=1800;
 let moveEffect;
 let feedback;
 let storageOK=true;
@@ -25,47 +30,52 @@ const boardPositions=[
   [1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[2,6],[3,6],
   [4,6],[4,5],[4,4],[4,3],[4,2],[4,1],[3,1],[2,1]
 ];
+const catColors=['ชมพู','ส้ม','เขียวมิ้นต์','ฟ้า','ม่วง','ดำ','ขาว'];
+
+function trackStack(space){
+  return Object.keys(game.track).map(Number)
+    .filter(n=>n===space||space===1&&n<1||space===16&&n>16)
+    .flatMap(n=>game.track[n]).reverse();
+}
 
 const escape=value=>String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
 const points=n=>n>0?'+'+n:String(n);
 const icon=(id,extra='')=>{
   const cat=cats[id];
-  return '<span aria-hidden="true" class="cat '+cat.fur+' '+extra+'" style="--fur:'+cat.color+'"><i></i><i></i><b>'+cat.mark+'</b></span>';
+  return '<span aria-hidden="true" class="cat '+cat.fur+(id>=5?' reverse-cat':'')+' '+extra+'" style="--fur:'+cat.color+'"><i></i><i></i><b>'+cat.mark+'</b><em class="token-base"></em></span>';
 };
 const name=id=>icon(id,'tiny')+'<span>'+cats[id].name+'</span>';
 const dieIcon=id=>id===7?'<span class="grey-die">↶</span>':icon(id,'tiny');
-const art=()=>'<div class="cover-art" aria-hidden="true"><div class="sun"></div><div class="cloud cloud-a"></div><div class="cloud cloud-b"></div><div class="hill hill-a"></div><div class="hill hill-b"></div><div class="cover-track"></div><span class="spark spark-a">✦</span><span class="spark spark-b">✧</span><span class="spark spark-c">✦</span><div class="hero-cats">'+icon(3,'art-cat cat-a')+icon(0,'art-cat cat-b')+icon(1,'art-cat cat-c')+'</div><span class="finish-flag">🏁</span></div>';
+const art=()=>'<div class="cover-art" aria-hidden="true"><div class="box-lid"><div class="box-title">Catm-Up!</div><div class="hero-cats">'+icon(3,'art-cat cat-a')+icon(0,'art-cat cat-b')+icon(1,'art-cat cat-c')+'</div></div><span class="cover-die">⚄</span><span class="cover-coin">●</span></div>';
 
 function home(){
   return '<section class="hero"><div class="hero-copy"><span class="eyebrow">สนามแข่งในสวนสนุกแมว</span><h1>Catm-Up<span>!</span></h1><p>แมววิ่ง แมวซ้อน แมวแซง! จับตาดูสนาม ทายผลให้แม่น แล้วเก็บเหรียญทูน่าให้มากที่สุด</p><div class="actions"><button class="primary" data-route="lobby">▶&nbsp; เริ่มเล่น</button>'+(game?'<button class="secondary" data-route="game">'+(game.ended?'ดูผลเกมล่าสุด':'เล่นต่อ')+'</button>':'<button class="secondary" data-cmd="tutorial">อ่านวิธีเล่น</button>')+'</div></div>'+art()+'</section>'+
   (online.enabled?'<p><button class="secondary" data-route="online">เล่นออนไลน์กับเพื่อน</button></p>':'')+
-  '<section class="library"><div class="section-heading"><h2>คลังเกม</h2></div><div class="library-grid"><article class="game-card"><div class="mini-cover">'+icon(0)+icon(1)+icon(3)+'<b>Catm-Up!</b></div><div class="game-card-copy"><div class="badge">เล่นกับบอตได้</div><h3>Catm-Up!</h3><p>เกมกระดานแข่งแมวและทายผล</p><div class="card-footer"><span>♟ 3–8 ที่นั่ง</span><button class="secondary" data-route="lobby">เล่น →</button></div></div></article><article class="soon-card"><span class="soon-icon">✦</span><h3>เกมถัดไป</h3><p>Coming Soon</p></article></div></section>';
+  '<section class="library"><div class="section-heading"><h2>คลังเกม</h2></div><div class="library-grid"><article class="game-card"><div class="mini-cover">'+icon(0)+icon(1)+icon(3)+'<b>Catm-Up!</b></div><div class="game-card-copy"><div class="badge">เล่นกับบอตได้</div><h3>Catm-Up!</h3><p>เกมกระดานแข่งแมวและทายผล</p><div class="card-footer"><span>♟ 3–8 ที่นั่ง</span><button class="secondary" data-route="lobby">เล่น →</button></div></div></article></div></section>';
 }
 function lobby(){
   const timings=[[30,'30 วินาที'],[60,'60 วินาที'],[90,'90 วินาที'],[0,'ไม่จำกัด']];
   const options=Object.entries(levels);
   const bots=Array.from({length:config.seats-1},(_,i)=>'<label class="bot-row"><span class="bot-avatar">✦</span><span>บอต '+(i+1)+'</span><select aria-label="ระดับบอต '+(i+1)+'" data-bot="'+i+'">'+options.map(([value,label])=>'<option value="'+value+'" '+((config.bots[i]??'normal')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label>').join('');
-  return '<button class="link back" data-route="home">← คลังเกม</button><div class="lobby-layout"><section class="panel lobby-info">'+art()+'<div><span class="eyebrow">แข่งกับบอต</span><h2>Catm-Up!</h2><p>ผู้เล่น 1 คน และบอต 2–7 ตัว</p><div class="online"><b>Online Multiplayer</b>'+(online.enabled?'<button class="secondary" data-route="online">เล่นออนไลน์</button>':'<span>เล่นได้ผ่านเซิร์ฟเวอร์สำหรับทดสอบ</span>')+'</div></div></section><form id="lobby" class="panel lobby-form"><h1>ตั้งค่าห้อง</h1><div class="fields"><label>ชื่อผู้เล่น<input name="name" maxlength="24" placeholder="นักทายแมว" value="'+escape(config.name)+'"></label><label>จำนวนที่นั่ง<select name="seats">'+[3,4,5,6,7,8].map(n=>'<option '+(config.seats===n?'selected':'')+'>'+n+'</option>').join('')+'</select></label></div><fieldset><legend>เวลาในแต่ละตา</legend><div class="timings">'+timings.map(([time,label])=>'<label><input type="radio" name="timer" value="'+time+'" '+(config.timer===time?'checked':'')+'><span>'+label+'</span></label>').join('')+'</div></fieldset><h3>บอต '+(config.seats-1)+' ตัว</h3><div class="bot-list">'+bots+'</div><details class="seed"><summary>กำหนด Seed</summary><label>Seed ของการแข่งขัน<input name="seed" type="number" step="1" min="0" max="4294967295" placeholder="สุ่มอัตโนมัติ" value="'+escape(config.seed??'')+'"></label></details><button type="submit" class="primary wide">▶&nbsp; เริ่มการแข่งขัน</button></form></div>';
+  return '<button class="link back" data-route="home">← คลังเกม</button><div class="lobby-layout"><section class="panel lobby-info">'+art()+'<div><span class="eyebrow">แข่งกับบอต</span><h2>Catm-Up!</h2><p>ผู้เล่น 1 คน และบอต 2–7 ตัว</p><div class="online"><b>เล่นกับเพื่อน</b>'+(online.enabled?'<button class="secondary" data-route="online">เล่นออนไลน์</button>':'<span>เล่นได้ผ่านเซิร์ฟเวอร์สำหรับทดสอบ</span>')+'</div></div></section><form id="lobby" class="panel lobby-form"><h1>ตั้งค่าห้อง</h1><div class="fields"><label>ชื่อผู้เล่น<input name="name" maxlength="24" placeholder="นักทายแมว" value="'+escape(config.name)+'"></label><label>จำนวนที่นั่ง<select name="seats">'+[3,4,5,6,7,8].map(n=>'<option '+(config.seats===n?'selected':'')+'>'+n+'</option>').join('')+'</select></label></div><fieldset><legend>เวลาในแต่ละตา</legend><div class="timings">'+timings.map(([time,label])=>'<label><input type="radio" name="timer" value="'+time+'" '+(config.timer===time?'checked':'')+'><span>'+label+'</span></label>').join('')+'</div></fieldset><h3>บอต '+(config.seats-1)+' ตัว</h3><div class="bot-list">'+bots+'</div><details class="seed"><summary>กำหนด Seed</summary><label>Seed ของการแข่งขัน<input name="seed" type="number" step="1" min="0" max="4294967295" placeholder="สุ่มอัตโนมัติ" value="'+escape(config.seed??'')+'"></label></details><button type="submit" class="primary wide">▶&nbsp; เริ่มการแข่งขัน</button></form></div>';
 }
 
 function board(){
   const cells=boardPositions.map(([row,column],i)=>{
     const space=i+1;
-    const tracks=[space];
-    if(space===1)tracks.push(...Object.keys(game.track).map(Number).filter(n=>n<1));
-    if(space===16)tracks.push(...Object.keys(game.track).map(Number).filter(n=>n>16));
-    const stack=tracks.flatMap(n=>game.track[n]??[]);
+    const stack=trackStack(space);
     const item=game.items.find(t=>t.space===space);
     return '<button class="space '+(space===1?'start ':space===16?'finish ':'')+
       (stack.some(cat=>game.lastMove?.cats.includes(cat))&&moveEffect?'moved':'')+
       '" style="grid-area:'+row+'/'+column+'" data-space="'+space+'" aria-label="ช่อง '+space+
-      (stack.length?' '+stack.map(cat=>cats[cat].name).join(' / '):' ว่าง')+'"><span class="space-no">'+space+'</span>'+
+      (space===1?' จุดเริ่มต้นและเส้นชัย':space===16?' ก่อนเส้นชัย':'')+
+      (stack.length?' ซ้อน '+stack.length+' ตัว จากบนลงล่าง '+stack.map(cat=>cats[cat].name+(cat>=5?' เดินย้อน':'')).join(' / '):' ว่าง')+'"><span class="space-no">'+space+'</span>'+
       (space===1?'<span class="line-label">เริ่ม / 🏁</span>':space===16?'<span class="line-label">ก่อนเส้นชัย</span>':'')+
       (item?'<span class="item-mark '+(item.sign>0?'boost':'brake')+'">'+(item.sign>0?'🐟 +1':'🧶 −1')+'</span>':'')+
-      (stack.length?'<span class="stack">'+[...stack].reverse().map(cat=>icon(cat,'track-cat'+(moveEffect?.cats.includes(cat)?' moving-cat':''))).join('')+'</span>':'')+
+      (stack.length?'<span class="stack" data-count="'+stack.length+'">'+stack.slice(0,3).map(cat=>'<span class="stack-piece">'+icon(cat,'track-cat'+(moveEffect?.cats.includes(cat)?' moving-cat':''))+'</span>').join('')+'</span>'+(stack.length>1?'<span class="stack-count" aria-hidden="true">'+stack.length+'</span>':''):'')+
       '</button>';
   }).join('');
-  return '<section class="panel board-panel"><div class="board-head"><div><span class="eyebrow">สนามแข่ง 16 ช่อง</span><h2>สวนสนุกแมว</h2></div><span class="chip">↻ แมวหลัก &nbsp; ↶ แมวพิเศษ</span></div><div class="board"><div class="infield"><span class="tree tree-a">🌳</span><span class="tree tree-b">🌳</span><span class="toy">🧶</span><span class="fish">🐟</span><div class="playhouse" aria-hidden="true"><i></i><b></b></div><strong>CAT PARK</strong><span class="tunnel" aria-hidden="true"></span></div>'+cells+'</div><div class="board-note">แตะช่องเพื่อดูชื่อแมวและลำดับการซ้อน</div></section>';
+  return '<section class="panel board-panel"><div class="board-head"><div><span class="eyebrow">สนามแข่ง 16 ช่อง</span><h2>สวนสนุกแมว</h2></div><span class="chip">↻ แมวหลัก &nbsp; ↶ แมวพิเศษ</span></div><div class="board"><div class="infield" aria-hidden="true"><strong>CAT PARK</strong></div>'+cells+'</div><div class="board-note">แตะช่องเพื่อดูชื่อแมวและลำดับการซ้อน</div></section>';
 }
 function raceStatus(){
   const current=game.players[game.turn];
@@ -74,7 +84,7 @@ function raceStatus(){
 }
 function timerText(){
   if(!game||game.ended)return '';
-  if(game.players[game.turn].bot)return '✦ บอตกำลังเล่น';
+  if(game.players[game.turn].bot)return 'ตาบอต';
   if(deadline===null)return '∞ ไม่จำกัดเวลา';
   const seconds=Math.max(0,Math.ceil((deadline-Date.now()-(inRoom()?online.offset:0))/1000));
   return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
@@ -98,7 +108,7 @@ function actionPanel(){
   ];
   const disabledReasons={leg:'ตั๋วรอบย่อยหมดแล้ว',item:'ไม่มีช่องที่วางได้',overall:'ใช้การ์ดครบแล้ว',partner:game.players.length<6?'ต้องมีอย่างน้อย 6 ที่นั่ง':'คุณมีคู่หูแล้วหรือไม่มีผู้เล่นที่ว่าง'};
   const tabs=types.filter(([type])=>type!=='partner'||game.players.length>=6).map(([type,symbol,label])=>
-    '<button class="tab '+(type===panel?'chosen':'')+'" data-panel="'+type+'" aria-pressed="'+(type===panel)+'"><span>'+symbol+'</span>'+label+'</button>').join('');
+    '<button class="tab '+(type===panel?'chosen':'')+'" data-panel="'+type+'" aria-pressed="'+(type===panel)+'" aria-controls="action-details"><span aria-hidden="true">'+symbol+'</span>'+label+'</button>').join('');
   const available=actions.filter(a=>a.type===panel);
   const disabled=human?'':' disabled';
   const actionButton=(a,label,style='secondary')=>'<button class="'+style+'" data-act="'+[a.type,a.cat??a.space??a.target??'',a.side??a.sign??''].join(':')+'"'+disabled+'>'+label+'</button>';
@@ -118,25 +128,59 @@ function actionPanel(){
       cats.slice(0,5).map((cat,i)=>'<button class="secondary" data-overall="'+i+'"'+(game.players[mySeat()].used.includes(i)?' disabled':disabled)+'>'+name(i)+'</button>').join('');
   }
   if(panel==='partner')controls=available.map(a=>actionButton(a,escape(game.players[a.target].name))).join('');
-  const help=human?(available.length?types.find(([type])=>type===panel)?.[3]:disabledReasons[panel]):'รอจนถึงตาของคุณ';
-  return '<section class="panel action-panel"><div class="action-head"><h3>เลือกการกระทำ</h3><button class="link" data-cmd="auto" '+(human&&(!inRoom()||game.config.timer===0)?'':'disabled')+'>ให้บอตเล่นแทน</button></div><div class="tabs">'+tabs+'</div><p class="action-help">'+help+'</p><div class="action-options">'+controls+'</div></section>';
+  const help=inRoom()&&online.busy?'กำลังส่งการกระทำ…':human?(available.length?types.find(([type])=>type===panel)?.[3]:disabledReasons[panel]):'รอจนถึงตาของคุณ';
+  const dockStatus=inRoom()&&online.error?online.error:inRoom()&&online.busy?'กำลังส่งการกระทำ…':human?'ถึงตาคุณ':'รอ '+game.players[game.turn].name;
+  const quickRoll=actionButton({type:'roll'},'⚄ ทอย','primary quick-roll');
+  return '<section class="panel action-panel" data-expanded="'+actionDetails+'" aria-label="เลือกการกระทำ"><div class="dock-status" role="status">'+escape(dockStatus)+'</div>'+
+    '<div class="tabs">'+quickRoll+tabs+'<button class="link dock-toggle" data-cmd="action-details" aria-controls="action-details" aria-expanded="'+actionDetails+'" aria-label="'+(actionDetails?'ย่อแผงการกระทำ':'ขยายแผงการกระทำ')+'">'+(actionDetails?'⌄':'⋯')+'</button></div>'+
+    '<div id="action-details"><p class="action-help" role="status">'+help+'</p><div class="action-options" data-category="'+panel+'">'+controls+'</div><div class="action-head"><button class="link" data-cmd="auto" '+(human&&(!inRoom()||game.config.timer===0)?'':'disabled')+'>ให้บอตเล่นแทน</button></div></div></section>';
 }
 function activity(){
   return '<details class="panel activity" open><summary>บันทึกการแข่งขัน</summary><ol>'+[...game.log].reverse().map(e=>'<li class="event-'+e.kind+'">'+escape(e.label)+'</li>').join('')+'</ol></details>';
 }
 function match(){
-  return raceStatus()+'<div class="match-grid"><div class="match-main">'+board()+dicePanel()+actionPanel()+'</div><aside>'+standings()+activity()+'</aside></div>';
+  return raceStatus()+'<div id="bot-replay" role="status"></div><div class="match-grid"><div class="match-main">'+board()+dicePanel()+actionPanel()+'</div><aside>'+standings()+activity()+'</aside></div>';
+}
+
+function paintBotReplay(animate=false){
+  const card=document.querySelector('#bot-replay');
+  if(!card||!botReplay)return;
+  card.innerHTML='<b>ผลตาบอต</b><span>'+escape(botReplay.label)+'</span>';
+  card.dataset.kind=botReplay.kind;
+  if(animate&&!prefs.reduced&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    card.animate([{opacity:.6,transform:'translateY(3px)'},{opacity:1,transform:'none'}],{duration:260});
+  }
+}
+function showNextBot(){
+  botReplayTimer=undefined;
+  const entry=botQueue.shift();
+  if(!entry)return;
+  botReplay=entry;
+  paintBotReplay(true);
+  botReplayTimer=setTimeout(showNextBot,botDisplayMs);
+}
+function queueBotResults(previous){
+  if(!previous||previous.step>=game.step)return;
+  botQueue.push(...game.log.filter(entry=>entry.bot&&entry.step>previous.step));
+  if(botQueue.length&&botReplayTimer===undefined)showNextBot();
+}
+function resetBotReplay(){
+  clearTimeout(botReplayTimer);
+  botReplayTimer=undefined;
+  botQueue.length=0;
+  botReplay=undefined;
 }
 function results(){
   const order=rank(game);
   const sorted=[...game.players].sort((a,b)=>b.score-a.score);
   const winners=game.winners.map(id=>escape(game.players[id].name)).join(' และ ');
-  return '<section class="panel result-hero"><span class="eyebrow">จบการแข่งขัน</span><div class="cup">🏆</div><h1>'+winners+' ชนะ'+(game.winners.length>1?'ร่วมกัน':'')+'!</h1><p>ผู้เล่นที่มีเหรียญทูน่าสูงสุด · '+sorted[0].score+' เหรียญ</p><div class="actions"><button class="primary" data-route="lobby">↻&nbsp; เล่นอีกครั้ง</button><button class="secondary" data-route="home">กลับคลังเกม</button></div></section><div class="results-grid"><section class="panel sidebar"><h2>อันดับแมว</h2><p class="winner-cat">'+name(order[0])+' ชนะการแข่งขัน</p><ol class="rank">'+order.map((id,i)=>'<li><span class="rank-position">'+(i+1)+'</span>'+name(id)+'</li>').join('')+'</ol></section><section class="panel sidebar"><h2>คะแนนผู้เล่น</h2>'+sorted.map(p=>'<details class="result-row" '+(p.id===mySeat()?'open':'')+'><summary><b>'+ (sorted.findIndex(other=>other.score===p.score)+1)+'. '+escape(p.name)+'</b><strong>'+p.score+' 🐟</strong></summary><ul>'+p.ledger.map(entry=>'<li><span>'+escape(entry.label)+'</span><b class="'+(entry.value<0?'negative':'')+'">'+points(entry.value)+'</b></li>').join('')+'</ul></details>').join('')+'</section></div>';
+  return '<div id="bot-replay" role="status"></div><section class="panel result-hero"><span class="eyebrow">จบการแข่งขัน</span><div class="cup">🏆</div><h1>'+winners+' ชนะ'+(game.winners.length>1?'ร่วมกัน':'')+'!</h1><p>ผู้เล่นที่มีเหรียญทูน่าสูงสุด · '+sorted[0].score+' เหรียญ</p><div class="actions"><button class="primary" data-route="lobby">↻&nbsp; เล่นอีกครั้ง</button><button class="secondary" data-route="home">กลับคลังเกม</button></div></section><div class="results-grid"><section class="panel sidebar"><h2>อันดับแมว</h2><p class="winner-cat">'+name(order[0])+' ชนะการแข่งขัน</p><ol class="rank">'+order.map((id,i)=>'<li><span class="rank-position">'+(i+1)+'</span>'+name(id)+'</li>').join('')+'</ol></section><section class="panel sidebar"><h2>คะแนนผู้เล่น</h2>'+sorted.map(p=>'<details class="result-row" '+(p.id===mySeat()?'open':'')+'><summary><b>'+ (sorted.findIndex(other=>other.score===p.score)+1)+'. '+escape(p.name)+'</b><strong>'+p.score+' 🐟</strong></summary><ul>'+p.ledger.map(entry=>'<li><span>'+escape(entry.label)+'</span><b class="'+(entry.value<0?'negative':'')+'">'+points(entry.value)+'</b></li>').join('')+'</ul></details>').join('')+'</section></div>';
 }
 
 function render(){
   document.documentElement.dataset.reduce=prefs.reduced?'yes':'no';
   app.innerHTML=screen==='online'?(inRoom()?(game.ended?results():match())+online.status(escape):online.lobby(escape))+(online.room?'<p><button class="link" data-route="home">กลับคลังเกม</button></p>':''):screen==='lobby'?lobby():screen==='game'&&game?(game.ended?results():match()):home();
+  paintBotReplay();
   if((screen==='game'||inRoom())&&game&&feedback){
     motion(app,moveEffect,prefs.reduced,feedback);
   }
@@ -166,6 +210,7 @@ function submit(action,auto=false){
   const before=game.leg;
   game=act(game,action,{auto});
   if(game===previous)return;
+  queueBotResults(previous);
   deadline=nextDeadline();
   save();
   moveEffect=game.lastMove;
@@ -178,6 +223,7 @@ function submit(action,auto=false){
 }
 function goto(route){
   const next=(online.enabled?['home','lobby','game','online']:['home','lobby','game']).includes(route)?route:'home';
+  if(next!==screen){resetBotReplay();actionDetails=false;}
   if(next==='online'&&screen!=='online'){
     localMatch={game,deadline};
     game=null;
@@ -201,6 +247,7 @@ function syncRoom(){
   game=online.room?.game??null;
   deadline=online.room?.deadline??null;
   if(previous&&game&&previous.step!==game.step){
+    queueBotResults(previous);
     const singleStep=game.step===previous.step+1;
     moveEffect=singleStep?game.lastMove:null;
     feedback=game.ended?'finish':game.leg!==previous.leg?'round-end':moveEffect?'roll':
@@ -212,6 +259,10 @@ function syncRoom(){
   const focused=document.activeElement;
   const focusedId=app.contains(focused)?focused.id:null;
   const actKey=app.contains(focused)?focused.dataset.act:null;
+  const dockFocus=focused.closest('.action-panel')&&[
+    ['panel',focused.dataset.panel],['cmd',focused.dataset.cmd],
+    ['item',focused.dataset.item],['overall',focused.dataset.overall]
+  ].find(([,value])=>value!==undefined);
   if(!game&&!online.room&&app.querySelector('#join-room')){
     const status=app.querySelector('.online-status');
     status.textContent=online.error||(online.busy?'กำลังส่งคำขอ…':'');
@@ -224,7 +275,11 @@ function syncRoom(){
     if(select&&[...select.options].some(option=>option.value===value))select.value=value;
   }
   if(focusedId)document.getElementById(focusedId)?.focus({preventScroll:true});
-  if(actKey)[...app.querySelectorAll('[data-act]')].find(button=>button.dataset.act===actKey)?.focus({preventScroll:true});
+  if(actKey)[...app.querySelectorAll('[data-act]')].find(button=>button.dataset.act===actKey&&button.getClientRects().length)?.focus({preventScroll:true});
+  if(dockFocus){
+    const [key,value]=dockFocus;
+    app.querySelector('.action-panel [data-'+key+'="'+value+'"]')?.focus({preventScroll:true});
+  }
 }
 function start(){
   if(!document.querySelector('#lobby')?.reportValidity())return;
@@ -258,11 +313,19 @@ function settings(){
     (game&&screen!=='online'?'<p class="muted">Seed ของเกมล่าสุด '+game.seed+'</p><p class="muted">'+(storageOK?'บันทึกเกมในเบราว์เซอร์นี้':'เบราว์เซอร์ปิดการบันทึกเกม')+'</p><button class="secondary danger" data-cmd="reset">ลบเกมล่าสุด</button>':''));
 }
 function inspect(space){
-  const cells=Object.keys(game.track).map(Number).filter(n=>n===space||space===1&&n<1||space===16&&n>16);
-  const stack=cells.flatMap(n=>game.track[n]).reverse();
+  const stack=trackStack(space);
   const item=game.items.find(entry=>entry.space===space);
-  popup('ช่อง '+space,(stack.length?'<ol class="rank">'+stack.map((id,i)=>'<li><span class="rank-position">'+(i+1)+'</span>'+name(id)+(id>=5?' <small>เดินย้อน</small>':'')+'</li>').join('')+'</ol><p class="muted">เรียงจากด้านบนลงด้านล่าง</p>':'<p>ช่องนี้ยังไม่มีแมว</p>')+
+  popup('ช่อง '+space,(stack.length?'<ol class="rank">'+stack.map((id,i)=>'<li><span class="rank-position">'+(i+1)+'</span>'+name(id)+' <small>สี'+catColors[id]+(id>=5?' · เดินย้อน':'')+'</small></li>').join('')+'</ol><p class="muted">เรียงจากด้านบนลงด้านล่าง</p>':'<p>ช่องนี้ยังไม่มีแมว</p>')+
     (item?'<p>ไอเทม '+points(item.sign)+' ของ '+escape(game.players[item.owner].name)+'</p>':''));
+}
+function openActionDetails(buttonSelector){
+  render();
+  app.querySelector(buttonSelector)?.focus({preventScroll:true});
+  if(!actionDetails||!matchMedia('(max-width: 650px)').matches)return;
+  const track=app.querySelector('.board').getBoundingClientRect();
+  const dock=app.querySelector('.action-panel').getBoundingClientRect();
+  const overlap=track.bottom-dock.top+8;
+  if(overlap>0&&track.top>=overlap)window.scrollBy(0,overlap);
 }
 document.addEventListener('click',event=>{
   const button=event.target.closest('button');
@@ -278,9 +341,14 @@ document.addEventListener('click',event=>{
   if(cmd==='resume-lobby'){dialog.close();start();}
   if((screen!=='game'&&!inRoom())||!game||game.ended)return;
   if(space)inspect(Number(space));
-  if(tab){panel=tab;render();app.querySelector('[data-panel="'+tab+'"]')?.focus({preventScroll:true});}
+  if(cmd==='action-details'){
+    actionDetails=!actionDetails;
+    openActionDetails('.dock-toggle');
+  }
+  if(tab){panel=tab;actionDetails=true;openActionDetails('[data-panel="'+tab+'"]');}
   if(game.turn!==mySeat())return;
   const send=inRoom()?online.move:submit;
+  if(cmd==='auto'||raw||item||overall!==undefined)actionDetails=false;
   if(cmd==='auto'){
     if(inRoom())online.move(null,true);
     else submit(choose(botView(game),'normal'),true);
@@ -298,6 +366,12 @@ document.addEventListener('submit',event=>{
   event.preventDefault();
   if(game&&!game.ended)popup('เริ่มเกมใหม่?', '<p>เกมที่กำลังเล่นอยู่จะถูกแทนที่</p><div class="actions"><button class="secondary" data-cmd="close">ยกเลิก</button><button class="primary" data-cmd="resume-lobby">เริ่มเกมใหม่</button></div>');
   else start();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key!=='Escape'||dialog.open||!actionDetails||!matchMedia('(max-width: 650px)').matches)return;
+  actionDetails=false;
+  render();
+  app.querySelector('.dock-toggle')?.focus({preventScroll:true});
 });
 document.addEventListener('input',event=>{
   const {target}=event;

@@ -1,0 +1,48 @@
+name: Bedgorm CI
+
+on:
+  push:
+    branches: [feat/phase3-enhancement]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: bedgorm_test
+          POSTGRES_USER: bedgorm_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bedgorm_test -d bedgorm_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
+      - name: Validate JavaScript syntax
+        run: find dist server test -name '*.mjs' -print0 | xargs -0 -r -n 1 node --check
+      - run: npm test
+        env:
+          BEDGORM_TEST_POSTGRES_URL: postgresql://bedgorm_test@127.0.0.1:${{ job.services.postgres.ports[5432] }}/bedgorm_test
+          BEDGORM_TEST_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+      - run: node scripts/phase3-load.mjs
+        env:
+          BEDGORM_TEST_POSTGRES_URL: postgresql://bedgorm_test@127.0.0.1:${{ job.services.postgres.ports[5432] }}/bedgorm_test
+      - run: node test/tabletop-browser.mjs

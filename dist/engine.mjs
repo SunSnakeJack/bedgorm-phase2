@@ -70,8 +70,8 @@ function score(game,id,label,value){
   player.score+=value;
   player.ledger.push({label,value});
 }
-function log(game,label,kind){
-  game.log.push({label,kind});
+function log(game,label,kind,action){
+  game.log.push(action?{label,kind,...action}:{label,kind});
   if(game.log.length>100)game.log.shift();
 }
 
@@ -168,6 +168,8 @@ export function act(game,input,{auto=false,entropy}={}){
   next.step++;
   next.idle++;
   next.lastMove=null;
+  // Public metadata lets clients replay missed actions in order after polling.
+  const record=(label,kind)=>log(next,label,kind,{step:next.step,seat:player.id,bot:!!player.bot});
   if(action.type==='roll'){
     const draw=entropy??(()=>random(next));
     const [die]=next.draw.splice(Math.floor(draw()*next.draw.length),1);
@@ -176,7 +178,7 @@ export function act(game,input,{auto=false,entropy}={}){
     next.rolled.push({die,cat,distance});
     player.rolls++;
     next.idle=0;
-    log(next,name+' สุ่มได้ '+cats[cat].name+' '+distance+' ช่อง','roll');
+    record(name+' สุ่มได้ '+cats[cat].name+' '+distance+' ช่อง','roll');
     next.lastMove=move(next,cat,distance);
     if(next.rolled.length===5||next.ended)settleLeg(next);
     if(next.ended)settleRace(next);
@@ -184,22 +186,22 @@ export function act(game,input,{auto=false,entropy}={}){
   if(action.type==='leg'){
     const value=next.stock[action.cat].shift();
     player.tickets.push({cat:action.cat,value});
-    log(next,name+' หยิบตั๋ว '+cats[action.cat].name+' · '+value,'ticket');
+    record(name+' หยิบตั๋ว '+cats[action.cat].name+' · '+value,'ticket');
   }
   if(action.type==='overall'){
     player.used.push(action.cat);
     next.overall[action.side].push({owner:player.id,cat:action.cat});
-    log(next,name+' ส่งคำทายลับ','secret');
+    record(name+' ส่งคำทายลับ','secret');
   }
   if(action.type==='item'){
     next.items=next.items.filter(item=>item.owner!==player.id);
     next.items.push({space:action.space,owner:player.id,sign:action.sign});
-    log(next,name+' วางไอเทม '+(action.sign>0?'+1':'−1')+' ช่อง '+action.space,'item');
+    record(name+' วางไอเทม '+(action.sign>0?'+1':'−1')+' ช่อง '+action.space,'item');
   }
   if(action.type==='partner'){
     player.partner=action.target;
     next.players[action.target].partner=player.id;
-    log(next,name+' จับคู่กับ '+next.players[action.target].name,'partner');
+    record(name+' จับคู่กับ '+next.players[action.target].name,'partner');
   }
   next.turn=(next.turn+1)%next.players.length;
   return next;

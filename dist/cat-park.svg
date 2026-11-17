@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 200" fill="none">
+  <defs>
+    <pattern id="grass" width="36" height="28" patternUnits="userSpaceOnUse">
+      <path d="m8 9 2 3 2-4m16 12 2-4" stroke="#7b975d" opacity=".4" stroke-linecap="round"/>
+      <circle cx="24" cy="6" r="1.6" fill="#fff1bd"/>
+    </pattern>
+    <g id="tree">
+      <ellipse cy="24" rx="29" ry="8" fill="#527756" opacity=".24"/>
+      <path d="M-4 24V0h8v24" fill="#aa7958" stroke="#735b43" stroke-width="2"/>
+      <path d="M-21 6C-41-2-27-23-16-22c5-18 30-18 36 0C36-21 41 4 23 8 15 16-8 16-21 6Z" fill="#88a876" stroke="#527756" stroke-width="2"/>
+      <path d="M-18-12c4-5 9-6 13-3m14-10c4-1 8 1 10 4" stroke="#cbdba2" stroke-width="3" stroke-linecap="round"/>
+    </g>
+  </defs>
+  <rect width="440" height="200" fill="#c9d7a2"/>
+  <rect width="440" height="200" fill="url(#grass)"/>
+  <path d="M-10 158C70 112 134 162 205 130S324 58 450 116" stroke="#ead5a2" stroke-width="29"/>
+  <path d="M-10 158C70 112 134 162 205 130S324 58 450 116" stroke="#fff2cd" stroke-width="2" stroke-dasharray="5 6"/>
+  <use href="#tree" x="61" y="61"/>
+  <use href="#tree" x="387" y="50"/>
+  <use href="#tree" transform="translate(346 146) scale(.74)"/>
+  <ellipse cx="242" cy="101" rx="47" ry="17" fill="#527756" opacity=".24"/>
+  <ellipse cx="242" cy="93" rx="43" ry="16" fill="#ded9cd" stroke="#8e8d80" stroke-width="2"/>
+  <ellipse cx="242" cy="90" rx="36" ry="10" fill="#94c7bf" stroke="#638e87" stroke-width="2"/>
+  <path d="M242 91V63m0 5c-8-17-19-11-22 2m22-2c8-17 19-11 22 2" stroke="#f9fff2" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="133" cy="110" rx="49" ry="12" fill="#527756" opacity=".27"/>
+  <path d="M99 67h65v40H99z" fill="#f4ccad" stroke="#865f53" stroke-width="2"/>
+  <path d="m90 70 41-36 43 36z" fill="#c38fa7" stroke="#865f53" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M121 106V92l-4-10 10 3h9l10-3-4 10v14z" fill="#8b675d"/>
+  <path d="M291 56h38m-36 5h34m-31 0v8m28-8v8" stroke="#9b7052" stroke-width="4" stroke-linecap="round"/>
+  <path d="M76 153h31l-3 9H79z" fill="#d88c93" stroke="#9a665a" stroke-width="2"/>
+  <circle cx="297" cy="147" r="8" fill="#d1a0bf" stroke="#997590" stroke-width="2"/>
+  <path d="m292 143 9 7m-7-11 7 6" stroke="#a8779c" stroke-width="1.5"/>
+</svg>
