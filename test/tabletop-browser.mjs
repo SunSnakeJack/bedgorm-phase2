@@ -73,6 +73,11 @@ async function localGame(page, url, variant, width, check) {
   await page.locator('[data-panel=leg]').click();
   assert.equal(await page.locator('[data-panel=leg]').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('[data-act^=leg]').count(), 5);
+  if(width<=390){
+    const dock=await page.locator('.action-panel').boundingBox();
+    const track=await page.locator('.board').boundingBox();
+    assert.ok(track.y>=0&&track.y+track.height<=dock.y,'The expanded betting controls must keep the track visible');
+  }
   if (mobileComparison&&width===390) await capture(page,'after-action-details-390.png');
   await page.locator('[data-panel=item]').click();
   assert.equal(await page.locator('[data-item]').count(), 2);

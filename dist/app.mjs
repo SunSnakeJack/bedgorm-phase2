@@ -318,6 +318,15 @@ function inspect(space){
   popup('ช่อง '+space,(stack.length?'<ol class="rank">'+stack.map((id,i)=>'<li><span class="rank-position">'+(i+1)+'</span>'+name(id)+' <small>สี'+catColors[id]+(id>=5?' · เดินย้อน':'')+'</small></li>').join('')+'</ol><p class="muted">เรียงจากด้านบนลงด้านล่าง</p>':'<p>ช่องนี้ยังไม่มีแมว</p>')+
     (item?'<p>ไอเทม '+points(item.sign)+' ของ '+escape(game.players[item.owner].name)+'</p>':''));
 }
+function openActionDetails(buttonSelector){
+  render();
+  app.querySelector(buttonSelector)?.focus({preventScroll:true});
+  if(!actionDetails||!matchMedia('(max-width: 650px)').matches)return;
+  const track=app.querySelector('.board').getBoundingClientRect();
+  const dock=app.querySelector('.action-panel').getBoundingClientRect();
+  const overlap=track.bottom-dock.top+8;
+  if(overlap>0&&track.top>=overlap)window.scrollBy(0,overlap);
+}
 document.addEventListener('click',event=>{
   const button=event.target.closest('button');
   if(!button||button.disabled)return;
@@ -334,10 +343,9 @@ document.addEventListener('click',event=>{
   if(space)inspect(Number(space));
   if(cmd==='action-details'){
     actionDetails=!actionDetails;
-    render();
-    app.querySelector('.dock-toggle')?.focus({preventScroll:true});
+    openActionDetails('.dock-toggle');
   }
-  if(tab){panel=tab;actionDetails=true;render();app.querySelector('[data-panel="'+tab+'"]')?.focus({preventScroll:true});}
+  if(tab){panel=tab;actionDetails=true;openActionDetails('[data-panel="'+tab+'"]');}
   if(game.turn!==mySeat())return;
   const send=inRoom()?online.move:submit;
   if(cmd==='auto'||raw||item||overall!==undefined)actionDetails=false;
