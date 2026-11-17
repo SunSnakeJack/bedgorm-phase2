@@ -30,22 +30,22 @@ const escape=value=>String(value).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;
 const points=n=>n>0?'+'+n:String(n);
 const icon=(id,extra='')=>{
   const cat=cats[id];
-  return '<span aria-hidden="true" class="cat '+cat.fur+' '+extra+'" style="--fur:'+cat.color+'"><i></i><i></i><b>'+cat.mark+'</b></span>';
+  return '<span aria-hidden="true" class="cat '+cat.fur+(id>=5?' reverse-cat':'')+' '+extra+'" style="--fur:'+cat.color+'"><i></i><i></i><b>'+cat.mark+'</b><em class="token-base"></em></span>';
 };
 const name=id=>icon(id,'tiny')+'<span>'+cats[id].name+'</span>';
 const dieIcon=id=>id===7?'<span class="grey-die">↶</span>':icon(id,'tiny');
-const art=()=>'<div class="cover-art" aria-hidden="true"><div class="sun"></div><div class="cloud cloud-a"></div><div class="cloud cloud-b"></div><div class="hill hill-a"></div><div class="hill hill-b"></div><div class="cover-track"></div><span class="spark spark-a">✦</span><span class="spark spark-b">✧</span><span class="spark spark-c">✦</span><div class="hero-cats">'+icon(3,'art-cat cat-a')+icon(0,'art-cat cat-b')+icon(1,'art-cat cat-c')+'</div><span class="finish-flag">🏁</span></div>';
+const art=()=>'<div class="cover-art" aria-hidden="true"><div class="box-lid"><div class="box-title">Catm-Up!</div><div class="hero-cats">'+icon(3,'art-cat cat-a')+icon(0,'art-cat cat-b')+icon(1,'art-cat cat-c')+'</div></div><span class="cover-die">⚄</span><span class="cover-coin">●</span></div>';
 
 function home(){
   return '<section class="hero"><div class="hero-copy"><span class="eyebrow">สนามแข่งในสวนสนุกแมว</span><h1>Catm-Up<span>!</span></h1><p>แมววิ่ง แมวซ้อน แมวแซง! จับตาดูสนาม ทายผลให้แม่น แล้วเก็บเหรียญทูน่าให้มากที่สุด</p><div class="actions"><button class="primary" data-route="lobby">▶&nbsp; เริ่มเล่น</button>'+(game?'<button class="secondary" data-route="game">'+(game.ended?'ดูผลเกมล่าสุด':'เล่นต่อ')+'</button>':'<button class="secondary" data-cmd="tutorial">อ่านวิธีเล่น</button>')+'</div></div>'+art()+'</section>'+
   (online.enabled?'<p><button class="secondary" data-route="online">เล่นออนไลน์กับเพื่อน</button></p>':'')+
-  '<section class="library"><div class="section-heading"><h2>คลังเกม</h2></div><div class="library-grid"><article class="game-card"><div class="mini-cover">'+icon(0)+icon(1)+icon(3)+'<b>Catm-Up!</b></div><div class="game-card-copy"><div class="badge">เล่นกับบอตได้</div><h3>Catm-Up!</h3><p>เกมกระดานแข่งแมวและทายผล</p><div class="card-footer"><span>♟ 3–8 ที่นั่ง</span><button class="secondary" data-route="lobby">เล่น →</button></div></div></article><article class="soon-card"><span class="soon-icon">✦</span><h3>เกมถัดไป</h3><p>Coming Soon</p></article></div></section>';
+  '<section class="library"><div class="section-heading"><h2>คลังเกม</h2></div><div class="library-grid"><article class="game-card"><div class="mini-cover">'+icon(0)+icon(1)+icon(3)+'<b>Catm-Up!</b></div><div class="game-card-copy"><div class="badge">เล่นกับบอตได้</div><h3>Catm-Up!</h3><p>เกมกระดานแข่งแมวและทายผล</p><div class="card-footer"><span>♟ 3–8 ที่นั่ง</span><button class="secondary" data-route="lobby">เล่น →</button></div></div></article></div></section>';
 }
 function lobby(){
   const timings=[[30,'30 วินาที'],[60,'60 วินาที'],[90,'90 วินาที'],[0,'ไม่จำกัด']];
   const options=Object.entries(levels);
   const bots=Array.from({length:config.seats-1},(_,i)=>'<label class="bot-row"><span class="bot-avatar">✦</span><span>บอต '+(i+1)+'</span><select aria-label="ระดับบอต '+(i+1)+'" data-bot="'+i+'">'+options.map(([value,label])=>'<option value="'+value+'" '+((config.bots[i]??'normal')===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label>').join('');
-  return '<button class="link back" data-route="home">← คลังเกม</button><div class="lobby-layout"><section class="panel lobby-info">'+art()+'<div><span class="eyebrow">แข่งกับบอต</span><h2>Catm-Up!</h2><p>ผู้เล่น 1 คน และบอต 2–7 ตัว</p><div class="online"><b>Online Multiplayer</b>'+(online.enabled?'<button class="secondary" data-route="online">เล่นออนไลน์</button>':'<span>เล่นได้ผ่านเซิร์ฟเวอร์สำหรับทดสอบ</span>')+'</div></div></section><form id="lobby" class="panel lobby-form"><h1>ตั้งค่าห้อง</h1><div class="fields"><label>ชื่อผู้เล่น<input name="name" maxlength="24" placeholder="นักทายแมว" value="'+escape(config.name)+'"></label><label>จำนวนที่นั่ง<select name="seats">'+[3,4,5,6,7,8].map(n=>'<option '+(config.seats===n?'selected':'')+'>'+n+'</option>').join('')+'</select></label></div><fieldset><legend>เวลาในแต่ละตา</legend><div class="timings">'+timings.map(([time,label])=>'<label><input type="radio" name="timer" value="'+time+'" '+(config.timer===time?'checked':'')+'><span>'+label+'</span></label>').join('')+'</div></fieldset><h3>บอต '+(config.seats-1)+' ตัว</h3><div class="bot-list">'+bots+'</div><details class="seed"><summary>กำหนด Seed</summary><label>Seed ของการแข่งขัน<input name="seed" type="number" step="1" min="0" max="4294967295" placeholder="สุ่มอัตโนมัติ" value="'+escape(config.seed??'')+'"></label></details><button type="submit" class="primary wide">▶&nbsp; เริ่มการแข่งขัน</button></form></div>';
+  return '<button class="link back" data-route="home">← คลังเกม</button><div class="lobby-layout"><section class="panel lobby-info">'+art()+'<div><span class="eyebrow">แข่งกับบอต</span><h2>Catm-Up!</h2><p>ผู้เล่น 1 คน และบอต 2–7 ตัว</p><div class="online"><b>เล่นกับเพื่อน</b>'+(online.enabled?'<button class="secondary" data-route="online">เล่นออนไลน์</button>':'<span>เล่นได้ผ่านเซิร์ฟเวอร์สำหรับทดสอบ</span>')+'</div></div></section><form id="lobby" class="panel lobby-form"><h1>ตั้งค่าห้อง</h1><div class="fields"><label>ชื่อผู้เล่น<input name="name" maxlength="24" placeholder="นักทายแมว" value="'+escape(config.name)+'"></label><label>จำนวนที่นั่ง<select name="seats">'+[3,4,5,6,7,8].map(n=>'<option '+(config.seats===n?'selected':'')+'>'+n+'</option>').join('')+'</select></label></div><fieldset><legend>เวลาในแต่ละตา</legend><div class="timings">'+timings.map(([time,label])=>'<label><input type="radio" name="timer" value="'+time+'" '+(config.timer===time?'checked':'')+'><span>'+label+'</span></label>').join('')+'</div></fieldset><h3>บอต '+(config.seats-1)+' ตัว</h3><div class="bot-list">'+bots+'</div><details class="seed"><summary>กำหนด Seed</summary><label>Seed ของการแข่งขัน<input name="seed" type="number" step="1" min="0" max="4294967295" placeholder="สุ่มอัตโนมัติ" value="'+escape(config.seed??'')+'"></label></details><button type="submit" class="primary wide">▶&nbsp; เริ่มการแข่งขัน</button></form></div>';
 }
 
 function board(){
@@ -54,18 +54,19 @@ function board(){
     const tracks=[space];
     if(space===1)tracks.push(...Object.keys(game.track).map(Number).filter(n=>n<1));
     if(space===16)tracks.push(...Object.keys(game.track).map(Number).filter(n=>n>16));
-    const stack=tracks.flatMap(n=>game.track[n]??[]);
+    const stack=tracks.flatMap(n=>game.track[n]??[]).reverse();
     const item=game.items.find(t=>t.space===space);
     return '<button class="space '+(space===1?'start ':space===16?'finish ':'')+
       (stack.some(cat=>game.lastMove?.cats.includes(cat))&&moveEffect?'moved':'')+
       '" style="grid-area:'+row+'/'+column+'" data-space="'+space+'" aria-label="ช่อง '+space+
-      (stack.length?' '+stack.map(cat=>cats[cat].name).join(' / '):' ว่าง')+'"><span class="space-no">'+space+'</span>'+
+      (space===1?' จุดเริ่มต้นและเส้นชัย':space===16?' ก่อนเส้นชัย':'')+
+      (stack.length?' ซ้อน '+stack.length+' ตัว จากบนลงล่าง '+stack.map(cat=>cats[cat].name+(cat>=5?' เดินย้อน':'')).join(' / '):' ว่าง')+'"><span class="space-no">'+space+'</span>'+
       (space===1?'<span class="line-label">เริ่ม / 🏁</span>':space===16?'<span class="line-label">ก่อนเส้นชัย</span>':'')+
       (item?'<span class="item-mark '+(item.sign>0?'boost':'brake')+'">'+(item.sign>0?'🐟 +1':'🧶 −1')+'</span>':'')+
-      (stack.length?'<span class="stack">'+[...stack].reverse().map(cat=>icon(cat,'track-cat'+(moveEffect?.cats.includes(cat)?' moving-cat':''))).join('')+'</span>':'')+
+      (stack.length?'<span class="stack">'+stack.map(cat=>icon(cat,'track-cat'+(moveEffect?.cats.includes(cat)?' moving-cat':''))).join('')+'</span>'+(stack.length>1?'<span class="stack-count" aria-hidden="true">'+stack.length+'</span>':''):'')+
       '</button>';
   }).join('');
-  return '<section class="panel board-panel"><div class="board-head"><div><span class="eyebrow">สนามแข่ง 16 ช่อง</span><h2>สวนสนุกแมว</h2></div><span class="chip">↻ แมวหลัก &nbsp; ↶ แมวพิเศษ</span></div><div class="board"><div class="infield"><span class="tree tree-a">🌳</span><span class="tree tree-b">🌳</span><span class="toy">🧶</span><span class="fish">🐟</span><div class="playhouse" aria-hidden="true"><i></i><b></b></div><strong>CAT PARK</strong><span class="tunnel" aria-hidden="true"></span></div>'+cells+'</div><div class="board-note">แตะช่องเพื่อดูชื่อแมวและลำดับการซ้อน</div></section>';
+  return '<section class="panel board-panel"><div class="board-head"><div><span class="eyebrow">สนามแข่ง 16 ช่อง</span><h2>สวนสนุกแมว</h2></div><span class="chip">↻ แมวหลัก &nbsp; ↶ แมวพิเศษ</span></div><div class="board"><div class="infield" aria-hidden="true"><strong>CAT PARK</strong></div>'+cells+'</div><div class="board-note">แตะช่องเพื่อดูชื่อแมวและลำดับการซ้อน</div></section>';
 }
 function raceStatus(){
   const current=game.players[game.turn];
@@ -118,8 +119,8 @@ function actionPanel(){
       cats.slice(0,5).map((cat,i)=>'<button class="secondary" data-overall="'+i+'"'+(game.players[mySeat()].used.includes(i)?' disabled':disabled)+'>'+name(i)+'</button>').join('');
   }
   if(panel==='partner')controls=available.map(a=>actionButton(a,escape(game.players[a.target].name))).join('');
-  const help=human?(available.length?types.find(([type])=>type===panel)?.[3]:disabledReasons[panel]):'รอจนถึงตาของคุณ';
-  return '<section class="panel action-panel"><div class="action-head"><h3>เลือกการกระทำ</h3><button class="link" data-cmd="auto" '+(human&&(!inRoom()||game.config.timer===0)?'':'disabled')+'>ให้บอตเล่นแทน</button></div><div class="tabs">'+tabs+'</div><p class="action-help">'+help+'</p><div class="action-options">'+controls+'</div></section>';
+  const help=inRoom()&&online.busy?'กำลังส่งการกระทำ…':human?(available.length?types.find(([type])=>type===panel)?.[3]:disabledReasons[panel]):'รอจนถึงตาของคุณ';
+  return '<section class="panel action-panel"><div class="action-head"><h3>เลือกการกระทำ</h3><button class="link" data-cmd="auto" '+(human&&(!inRoom()||game.config.timer===0)?'':'disabled')+'>ให้บอตเล่นแทน</button></div><div class="tabs">'+tabs+'</div><p class="action-help" role="status">'+help+'</p><div class="action-options">'+controls+'</div></section>';
 }
 function activity(){
   return '<details class="panel activity" open><summary>บันทึกการแข่งขัน</summary><ol>'+[...game.log].reverse().map(e=>'<li class="event-'+e.kind+'">'+escape(e.label)+'</li>').join('')+'</ol></details>';

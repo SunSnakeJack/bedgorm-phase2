@@ -19,7 +19,8 @@ const entropy=()=>randomInt(0x100000000)/0x100000000;
 const files=new Map([
   ['/', ['index.html','text/html; charset=UTF-8']],
   ...['app','engine','bot','session','effects','online'].map(name=>['/'+name+'.mjs',[name+'.mjs','text/javascript; charset=UTF-8']]),
-  ['/style.css',['style.css','text/css; charset=UTF-8']]
+  ...['style','tabletop'].map(name=>['/'+name+'.css',[name+'.css','text/css; charset=UTF-8']]),
+  ['/cat-park.svg',['cat-park.svg','image/svg+xml']]
 ]);
 
 function json(response,status,value){

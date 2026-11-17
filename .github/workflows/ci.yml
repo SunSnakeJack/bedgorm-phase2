@@ -45,3 +45,4 @@ jobs:
       - run: node scripts/phase3-load.mjs
         env:
           BEDGORM_TEST_POSTGRES_URL: postgresql://bedgorm_test@127.0.0.1:${{ job.services.postgres.ports[5432] }}/bedgorm_test
+      - run: node test/tabletop-browser.mjs
