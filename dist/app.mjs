@@ -72,7 +72,7 @@ function board(){
       (stack.length?' ซ้อน '+stack.length+' ตัว จากบนลงล่าง '+stack.map(cat=>cats[cat].name+(cat>=5?' เดินย้อน':'')).join(' / '):' ว่าง')+'"><span class="space-no">'+space+'</span>'+
       (space===1?'<span class="line-label">เริ่ม / 🏁</span>':space===16?'<span class="line-label">ก่อนเส้นชัย</span>':'')+
       (item?'<span class="item-mark '+(item.sign>0?'boost':'brake')+'">'+(item.sign>0?'🐟 +1':'🧶 −1')+'</span>':'')+
-      (stack.length?'<span class="stack" data-count="'+stack.length+'">'+stack.map((cat,index)=>'<span class="stack-piece">'+icon(cat,'track-cat'+(moveEffect?.cats.includes(cat)?' moving-cat':''))+(stack.length>3?'<span class="piece-order" aria-hidden="true">'+(index+1)+'</span>':'')+'</span>').join('')+'</span>'+(stack.length>1?'<span class="stack-count" aria-hidden="true">'+stack.length+'</span>':''):'')+
+      (stack.length?'<span class="stack" data-count="'+stack.length+'">'+stack.slice(0,3).map(cat=>'<span class="stack-piece">'+icon(cat,'track-cat'+(moveEffect?.cats.includes(cat)?' moving-cat':''))+'</span>').join('')+'</span>'+(stack.length>1?'<span class="stack-count" aria-hidden="true">'+stack.length+'</span>':''):'')+
       '</button>';
   }).join('');
   return '<section class="panel board-panel"><div class="board-head"><div><span class="eyebrow">สนามแข่ง 16 ช่อง</span><h2>สวนสนุกแมว</h2></div><span class="chip">↻ แมวหลัก &nbsp; ↶ แมวพิเศษ</span></div><div class="board"><div class="infield" aria-hidden="true"><strong>CAT PARK</strong></div>'+cells+'</div><div class="board-note">แตะช่องเพื่อดูชื่อแมวและลำดับการซ้อน</div></section>';

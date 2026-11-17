@@ -11,6 +11,7 @@ import {cats} from '../dist/engine.mjs';
 const snapshots = process.env.BEDGORM_SCREENSHOTS;
 const baseline = process.env.BEDGORM_BASELINE_SERVER;
 const mobileComparison = process.env.BEDGORM_MOBILE_UX_CAPTURE;
+const stackComparison = process.env.BEDGORM_STACK_CAPTURE;
 const browserOptions = process.env.BEDGORM_CHROME
   ? {executablePath: process.env.BEDGORM_CHROME}
   : {channel: 'chrome'};
@@ -22,26 +23,66 @@ async function capture(target, filename) {
   if (snapshots) await target.screenshot({path: join(snapshots, filename), animations: 'disabled'});
 }
 
+async function stackLayouts(page, stored, variant, width, check) {
+  for (const count of [2,3,4,7]) {
+    const fixture=decode(stored).game;
+    const stack=Array.from({length:count-1},(_,i)=>i).concat(6);
+    fixture.track={3:stack,14:cats.map((_,i)=>i).filter(id=>!stack.includes(id))};
+    await page.evaluate(([key,value])=>localStorage.setItem(key,value),[keys.match,encode(fixture,null)]);
+    await page.reload();
+    const cell=page.locator('[data-space="3"]');
+    await cell.locator('.stack-count').waitFor();
+    if(stackComparison&&(width===390&&count!==4||width===360&&count===7)){
+      await capture(page.locator('.board-panel'),variant+'-stack-'+count+'-'+width+'.png');
+    }
+    if(!check)continue;
+    assert.equal(await cell.locator('.stack-count').textContent(),String(count));
+    const ordered=[...stack].reverse();
+    const pieces=await cell.locator('.stack-piece').evaluateAll(nodes=>nodes.map(node=>{
+      const cat=node.querySelector('.track-cat');
+      const {top,bottom,left,right}=cat.getBoundingClientRect();
+      return {top,bottom,left,right,fur:cat.classList[1],layer:Number(getComputedStyle(node).zIndex)};
+    }));
+    assert.deepEqual(pieces.map(piece=>piece.fur),ordered.slice(0,3).map(id=>cats[id].fur));
+    for(let index=1;index<pieces.length;index++){
+      const front=pieces[index-1],behind=pieces[index];
+      assert.ok(front.top<behind.top&&behind.top<front.bottom,'Adjacent cats must overlap vertically');
+      assert.ok(front.left<behind.right&&behind.left<front.right,'Adjacent cats must overlap horizontally');
+      assert.ok(front.layer>behind.layer,'The top cat must cover the one beneath it');
+    }
+    assert.equal(await cell.locator('.track-cat.reverse-cat').count(),ordered.slice(0,3).filter(id=>id>=5).length);
+    await cell.click();
+    assert.deepEqual(await page.locator('dialog li > span:last-of-type').allTextContents(),ordered.map(id=>cats[id].name));
+    assert.equal(await page.locator('dialog small').count(),count);
+    assert.match(await page.locator('dialog small').first().textContent(),/สีขาว · เดินย้อน/);
+    await page.keyboard.press('Escape');
+  }
+}
+
 async function localGame(page, url, variant, width, check) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
   await page.locator('.hero [data-route=lobby]').click();
   await page.locator('#lobby input[name=name]').fill('QA Host');
-  if (!mobileComparison && [1440, 768, 390].includes(width)) await capture(page, variant + '-lobby-' + width + '.png');
+  if (!stackComparison && !mobileComparison && [1440, 768, 390].includes(width)) await capture(page, variant + '-lobby-' + width + '.png');
   await page.locator('summary').click();
   await page.locator('[name=seed]').fill('42');
   await page.locator('#lobby [type=submit]').click();
   await page.locator('.board').waitFor();
   if (mobileComparison && width<=390) await capture(page, variant+'-game-'+width+'.png');
-  if (!mobileComparison && [1440, 768, 390].includes(width) && snapshots) {
+  if (!stackComparison && !mobileComparison && [1440, 768, 390].includes(width) && snapshots) {
     await page.screenshot({path:join(snapshots, variant + '-game-' + width + '.png'), animations:'disabled', fullPage:true});
   }
-  if (!mobileComparison && width === 1440) {
+  if (!stackComparison && !mobileComparison && width === 1440) {
     await capture(page.locator('.board-panel'), variant + '-board.png');
     await capture(page.locator('.action-panel'), variant + '-actions.png');
   }
-  if (!check) return;
+  const stored = await page.evaluate(key => localStorage.getItem(key), keys.match);
+  if (!check) {
+    if(stackComparison&&width<=390)await stackLayouts(page,stored,variant,width,false);
+    return;
+  }
 
   const tiles = await page.locator('[data-space]').evaluateAll(nodes =>
     nodes.map(node => [Number(node.dataset.space), Number(node.style.gridRowStart), Number(node.style.gridColumnStart)]));
@@ -55,7 +96,6 @@ async function localGame(page, url, variant, width, check) {
   assert.equal(await page.locator('.track-cat.reverse-cat').count(), 2);
   const stacked = page.locator('.space:has(.stack-count)').first();
   const space = Number(await stacked.getAttribute('data-space'));
-  const stored = await page.evaluate(key => localStorage.getItem(key), keys.match);
   const stack = decode(stored).game.track[space];
   await stacked.click();
   const labels = await page.locator('dialog li > span:last-of-type').allTextContents();
@@ -104,24 +144,7 @@ async function localGame(page, url, variant, width, check) {
     const audit = await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
     assert.deepEqual(audit.violations.map(({id,nodes}) => [id,nodes.map(node => node.target)]), []);
   }
-  for (const count of width===390?[2,3,7]:[]) {
-    const fixture=decode(stored).game;
-    const stack=Array.from({length:count},(_,i)=>i);
-    fixture.track={3:stack,14:cats.map((_,i)=>i).slice(count)};
-    await page.evaluate(([key,value])=>localStorage.setItem(key,value),[keys.match,encode(fixture,null)]);
-    await page.reload();
-    const cell=page.locator('[data-space="3"]');
-    assert.equal(await cell.locator('.stack-count').textContent(),String(count));
-    const pieces=await cell.locator('.stack-piece').evaluateAll(nodes=>nodes.map(node=>({
-      top:node.getBoundingClientRect().top,left:node.getBoundingClientRect().left
-    })));
-    assert.equal(new Set(pieces.map(({top,left})=>top+':'+left)).size,count);
-    if(mobileComparison&&count===7)await capture(page,'after-seven-cats-390.png');
-    await cell.click();
-    assert.deepEqual(await page.locator('dialog li > span:last-of-type').allTextContents(),[...stack].reverse().map(id=>cats[id].name));
-    assert.equal(await page.locator('dialog small').count(),count);
-    await page.keyboard.press('Escape');
-  }
+  if (width<=390)await stackLayouts(page,stored,variant,width,true);
 }
 
 async function onlineGame(url) {
@@ -176,7 +199,7 @@ try {
     const page = await context.newPage();
     try {
       await localGame(page, app.url, 'after', width, true);
-      if (previous && (mobileComparison?width<=390:[1440,768,390].includes(width))) {
+      if (previous && ((mobileComparison||stackComparison)?width<=390:[1440,768,390].includes(width))) {
         await page.evaluate(() => localStorage.clear());
         await localGame(page, previous.url, 'before', width, false);
       }
